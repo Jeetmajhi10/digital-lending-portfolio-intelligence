@@ -43,7 +43,6 @@
   - [5.1 Channel Rebalancing](#51-channel-rebalancing)
   - [5.2 Behavioral EWS Operationalisation](#52-behavioral-ews-operationalisation)
   - [5.3 Subprime Repricing & Thin-File Ladder](#53-subprime-repricing--thin-file-ladder)
-- [Getting Started](#getting-started)
 
 ---
 
@@ -281,8 +280,6 @@ The lending portfolio is stratified into four distinct risk tiers. While **Prime
 - **Pricing Discrepancies:** Grade D (Thin-File) is structurally underpriced relative to its risk profile (15.4% default rate priced at a median APR of 20.69%, compared to Near-Prime Grade C+ at 16.8% default priced at 22.83% APR).
 - **Seasonality Effects:** Portfolio repayment follows distinct patterns. October, November (Diwali), and April show a **+5.9 percentage point increase** in on-time repayment rates, while the post-holiday period (January–March) experiences higher delinquency rates.
 
-> 📊 **Detailed Analysis & Strategic Reports:** For the full statistical findings, refer to the [`eda_stats_report.txt`](eda_stats_report.txt) and the leadership briefing in the [`Strategic_Portfolio_Intelligence_Report.md`](Strategic_Portfolio_Intelligence_Report.md).
-
 ---
 
 ## 4. Delinquency Prediction Model (EWS)
@@ -435,50 +432,7 @@ The model's predicted probabilities are mapped to three actionable risk buckets:
 | **Behavioural-score-based dynamic pricing** | GREEN bucket customers receive APR reductions as loyalty lever; RED bucket receives immediate repricing or restructuring |
 | **Goal** | Convert Thin-File (15.4% default) to Near-Prime through behavioural data accumulation |
 
----
-
-## Getting Started
-
-### Prerequisites
-
-```bash
-Python 3.10+
-pip install pandas numpy scipy scikit-learn lightgbm shap matplotlib seaborn plotly streamlit statsmodels
-```
-
-### Run the Pipeline
-
-```bash
-# 1. Generate synthetic dataset (optional — data already provided)
-python generate_lending_data.py
-
-# 2. Run statistical EDA (generates eda_stats_report.txt + 24 charts)
-python EDA.py
-
-# 3. Generate problem-statement visualisations (21 Q&A charts)
-python Q&A.py
-
-# 4. Train the delinquency prediction model
-python Model.py
-
-# 5. Launch the interactive Streamlit dashboard
-streamlit run Dashboard.py
-
-# 6. Generate model performance visualisations
-python Delinquency_Dashboard.py
-```
-
-### View Outputs
-
-- **Statistical Report:** `eda_stats_report.txt`
-- **EDA Charts:** `EDA charts/` directory
-- **Q&A Visualisations:** `Q&A charts/` directory  
-- **Model Artifacts:** `model_output/` directory
-- **Model Dashboards:** `model_charts/` directory
-- **Strategic Report:** `Strategic_Portfolio_Intelligence_Report.md`
-- **Credit Policy Report:** `Credit_Policy_Recommendation_Report.html`
-
----
+--- 
 
 <div align="center">
 
