@@ -86,46 +86,19 @@ Beyond the EDA, the project delivers a **30-day forward delinquency Early Warnin
 ```
 📁 CAC 2026 Project/
 │
-├── 📁 dataset/                          # Synthetic lending datasets (6 CSVs)
-│   ├── 00_master_loans.csv              # Wide analysis table (loans + customers + outcomes)
-│   ├── 01_customers.csv                 # Customer profiles (50K records)
-│   ├── 02_loans.csv                     # Loan & product details (70K records)
-│   ├── 03_repayments.csv                # Monthly repayment events (~1.14M records)
-│   ├── 04_behavioral_signals.csv        # Monthly behavioral signals (~1.24M records)
-│   └── 05_outcomes.csv                  # Loan-level outcomes & LTV (70K records)
-│
-├── 📁 EDA charts/                       # Statistical EDA visualisations (24 charts)
-├── 📁 Q&A charts/                       # Problem-statement-specific charts (21 charts)
-├── 📁 model_charts/                     # Model performance dashboards (8 HTML files)
-├── 📁 model_output/                     # Trained model artifacts
-│   ├── delinquency_model.pkl            # Serialised LightGBM model
-│   ├── metrics.json                     # All performance metrics
-│   ├── scorecard.csv                    # Loan-level risk scores
-│   ├── feature_importance.csv           # MDI feature importance
-│   ├── shap_summary.csv                 # SHAP feature attribution
-│   ├── confusion_matrix.csv             # Confusion matrix
-│   └── roc_data.csv                     # ROC curve data points
+├── 00_master_loans.csv              # Wide analysis table (loans + customers + outcomes)
+├── 01_customers.csv                 # Customer profiles (50K records)
+├── 02_loans.csv                     # Loan & product details (70K records)
+├── 03_repayments.csv                # Monthly repayment events (~1.14M records)
+├── 04_behavioral_signals.csv        # Monthly behavioral signals (~1.24M records)
+|── 05_outcomes.csv                  # Loan-level outcomes & LTV (70K records)
 │
 ├── generate_lending_data.py             # Synthetic dataset generator
-├── EDA.py                               # Statistical & mathematical EDA engine
 ├── Q&A.py                               # Problem-statement visualisations
 ├── Model.py                             # Delinquency prediction model (LightGBM v2.0)
 ├── Dashboard.py                         # Streamlit interactive portfolio dashboard
-├── Delinquency_Dashboard.py             # Model performance visualisation dashboard
-│
-├── DATA_DICTIONARY.txt                  # Complete data dictionary
-├── eda_stats_report.txt                 # Full statistical EDA report
-├── key_eda_drivers.md                   # Top EDA signals ranked by importance
 ├── Strategic_Portfolio_Intelligence_Report.md  # Synthesised findings & leadership answers
-├── Credit_Policy_Recommendation_Report.html   # Final credit policy recommendations
-│
-├── Problem Statements.pdf               # Original problem brief
-├── RBI digi lending guideline.pdf       # RBI Digital Lending Guidelines reference
-├── msme-pulse-report-may-2025.pdf       # MSME industry context report
-│
-└── 📁 Submission/                       # Final submission package
-    ├── C_A_Project.pdf
-    └── Credit-Policy-Recommendation.pdf
+├── C_A_Project.pdf                       # Project report
 ```
 
 ---
