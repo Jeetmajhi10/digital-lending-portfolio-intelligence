@@ -411,6 +411,5 @@ The model's predicted probabilities are mapped to three actionable risk buckets:
 
 **Built for CAC 2026 — Credit Analytics Challenge**
 
-*An end-to-end demonstration of how data science, statistical rigour, and machine learning can transform digital lending portfolio management.*
 
 </div>
