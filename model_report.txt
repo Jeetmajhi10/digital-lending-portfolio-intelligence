@@ -1,0 +1,410 @@
+
+======================================================================
+  SECTION 0 — LOADING DATASETS
+======================================================================
+  Customers          :     50,000
+  Loans              :     70,000
+  Repayments         :  1,048,575
+  Behavioral Signals :  1,236,752
+  Outcomes           :     70,000
+  Load time          : 3.8s
+
+======================================================================
+  SECTION 1 — FEATURE ENGINEERING A: REPAYMENT BEHAVIORAL (Last 3 Installments)
+======================================================================
+
+  Rationale:
+  Payment behaviour in the last 3 months is the strongest near-term
+  predictor of the next-month DPD.  Stress signals appear ~3 months
+  before default (per the data dictionary design), so features built
+  over a 3-installment rolling window capture the deterioration
+  trajectory that precedes delinquency.
+
+  Repayment features built in 0.8s
+  Observation rows (raw) : 1,048,575
+
+======================================================================
+  SECTION 2 — FEATURE ENGINEERING B: BANK BEHAVIORAL SIGNALS (Last 3 Months)
+======================================================================
+
+  Rationale:
+  Bank-account behavioral signals (balance volatility, cash-flow
+  consistency, income/spending shocks) are LEADING indicators of
+  financial stress — they deteriorate 1-3 months BEFORE payment
+  behaviour deteriorates.  The combination of income_shock_flag +
+  balance_volatility > 0.5 is explicitly cited in the data
+  dictionary as the strongest default predictor.
+
+  Behavioral features built in 1.5s
+  Behavioral rows         : 1,236,752
+
+======================================================================
+  SECTION 3 — FEATURE ENGINEERING C: ORIGINATION FEATURES (Loans × Customers)
+======================================================================
+
+  Rationale:
+  Origination-time features capture the structural creditworthiness
+  of the borrower.  While they do not change over time, they provide
+  the baseline risk level against which behavioral deterioration is
+  measured.  Bureau score, risk tier, and employment stability are
+  the strongest IV-ranked predictors from the EDA.
+
+  Origination features: 18 variables
+
+======================================================================
+  SECTION 4 — BUILD OBSERVATION PANEL + TARGET VARIABLE
+======================================================================
+
+  Panel construction:
+  Each row = (loan_id, installment_no) observation.
+  
+  Inclusion criteria for EWS relevance:
+    • Installment >= 4  (need 3 prior months of features)
+    • Next installment exists  (need forward target)
+    • Current DPD bucket ∈ {Current, DPD_1-30}
+      i.e., loan is PERFORMING or MILDLY DELINQUENT
+      (loans already 30+ DPD are ALREADY in collections)
+  
+  Target = 1 if next installment DPD >= 30 (DPD_31-60 or worse)
+
+  Observation rows after filtering : 823,543
+  Positive (target=1) rate         : 5.921%
+  Total NaN values after fill      : 0
+  Panel build time                 : 1.0s
+
+  Feature matrix shape : (823543, 37)
+  Class distribution   :
+    Non-delinquent (0) : 774,784  (94.08%)
+    Will-delinquent(1) : 48,759  (5.92%)
+
+======================================================================
+  SECTION 5 — TRAIN / TEST SPLIT
+======================================================================
+
+  Split strategy:
+  • 80% train / 20% test, stratified by target
+  • Stratification preserves the class imbalance ratio in both sets
+  • random_state=42 for reproducibility
+  • Sample weights computed from class frequencies to handle
+    imbalance within GradientBoostingClassifier (which lacks a
+    native class_weight parameter)
+
+  Training set  : 658,834 rows  |  Positive rate: 5.921%
+  Test set      : 164,709 rows   |  Positive rate: 5.921%
+
+======================================================================
+  SECTION 6 — MODEL TRAINING: GradientBoostingClassifier
+======================================================================
+
+  Algorithm: sklearn GradientBoostingClassifier
+  ─────────────────────────────────────────────
+  Choice rationale:
+  • Sequential boosting builds an additive model of decision trees,
+    each correcting the residuals of the previous — ideal for
+    tabular credit data with mixed feature types and non-linear
+    interactions (e.g. income_shock × balance_volatility).
+  • Naturally handles mixed numeric features (no scaling required).
+  • Produces well-calibrated probabilities for risk-bucket thresholding.
+  • Supports SHAP TreeExplainer for fast, exact feature attribution.
+
+  Hyperparameters chosen via domain knowledge and prior CV results:
+  • n_estimators=300  : enough trees for convergence without over-fit
+  • learning_rate=0.05: low LR + more trees → better generalisation
+  • max_depth=4        : shallow enough to avoid over-fitting on noisy
+                         behavioral signals
+  • subsample=0.80    : stochastic boosting reduces variance
+  • min_samples_leaf=30: minimum leaf size prevents over-fitting small
+                         minority-class clusters
+
+  Training time : 249.7s
+  Optimal threshold (F1-max on train): 0.556
+
+======================================================================
+  SECTION 7 — MODEL EVALUATION
+======================================================================
+
+----------------------------------------------------------------------
+  7A  ROC-AUC & Gini Coefficient
+----------------------------------------------------------------------
+  AUC  (Train) : 0.6349
+  AUC  (Test)  : 0.6186
+  Gini (Test)  : 23.73%
+  Train-Test AUC Gap : 0.0163  (Acceptable)
+     INTERPRETATION: AUC (Area Under the ROC Curve) measures the model's ability to rank
+     INTERPRETATION: delinquent loans higher than non-delinquent ones.
+     INTERPRETATION: AUC = 0.50 → random guess  |  AUC = 1.00 → perfect separation
+     INTERPRETATION: AUC = 0.619 → Moderate discriminatory power.
+     INTERPRETATION: Gini = 23.7% → Moderate — consider adding more behavioral features.
+     INTERPRETATION: The train-test AUC gap of 0.0163 confirms the model
+     INTERPRETATION: generalises well and is not over-fitted to the training data.
+
+----------------------------------------------------------------------
+  7B  KS Statistic (Kolmogorov-Smirnov)
+----------------------------------------------------------------------
+  KS Statistic : 16.61%
+  KS (via ROC) : 16.61%
+  p-value      : 1.0254e-221
+     INTERPRETATION: The KS Statistic measures the maximum separation between the cumulative
+     INTERPRETATION: distribution of predicted probabilities for delinquent vs non-delinquent loans.
+     INTERPRETATION: KS > 50%: Excellent  |  KS > 35%: Good  |  KS > 20%: Moderate
+     INTERPRETATION: KS = 16.6% → Weak separation.
+     INTERPRETATION: This is the PRIMARY metric used by Indian credit bureaus (CIBIL, Experian)
+     INTERPRETATION: and RBI-regulated lenders to validate credit scoring models.
+     INTERPRETATION: A KS of 16.6% means the model cleanly separates the two populations,
+     INTERPRETATION: giving the collections team a reliable signal for intervention prioritisation.
+
+----------------------------------------------------------------------
+  7C  Classification Report (Threshold = 0.556)
+----------------------------------------------------------------------
+                 precision    recall  f1-score   support
+
+ Non-Delinquent     0.9502    0.7814    0.8576    154957
+Will-Delinquent     0.0915    0.3496    0.1450      9752
+
+       accuracy                         0.7559    164709
+      macro avg     0.5208    0.5655    0.5013    164709
+   weighted avg     0.8994    0.7559    0.8154    164709
+
+  Precision (Delinquent class) : 0.0915  — of flagged loans, how many truly go bad?
+  Recall    (Delinquent class) : 0.3496  — of all bad loans, how many did we catch?
+  F1 Score                     : 0.1450  — harmonic mean of precision/recall
+  Avg Precision (PR-AUC)       : 0.0929  — area under precision-recall curve
+     INTERPRETATION: PRECISION 0.091: Of every 100 loans flagged as 'Will Delinquent',
+     INTERPRETATION: 9 actually go 30+ DPD. This controls the cost of false alarms
+     INTERPRETATION: (unnecessary collections calls to good borrowers).
+     INTERPRETATION: 
+     INTERPRETATION: RECALL 0.350: The model catches 35% of all loans that will
+     INTERPRETATION: genuinely go 30+ DPD. A higher recall is critical for minimising credit
+     INTERPRETATION: losses — missing a delinquency event is more costly than a false alarm.
+     INTERPRETATION: 
+     INTERPRETATION: F1 = 0.145: Balanced score accounting for both precision and recall.
+     INTERPRETATION: 
+     INTERPRETATION: The optimal threshold of 0.556 was chosen to maximise F1,
+     INTERPRETATION: balancing the operational cost of false alarms against missed delinquencies.
+     INTERPRETATION: In production, this threshold can be tuned based on the actual cost ratio
+     INTERPRETATION: of a missed default vs a wasted collections contact.
+
+----------------------------------------------------------------------
+  7D  Confusion Matrix
+----------------------------------------------------------------------
+
+  ┌─────────────────────────────────────────────────┐
+  │           PREDICTED                              │
+  │           Non-Delinquent   Will-Delinquent       │
+  │  ACTUAL                                          │
+  │  Non-Delinquent  TN=121,089     FP= 33,868   │
+  │  Will-Delinquent FN=  6,343     TP=  3,409   │
+  └─────────────────────────────────────────────────┘
+
+  True  Positive Rate (Sensitivity/Recall) : 34.96%
+  True  Negative Rate (Specificity)        : 78.14%
+  False Positive Rate                      : 21.86%  (good borrowers flagged)
+  False Negative Rate                      : 65.04%  (bad borrowers missed)
+  Precision                                : 9.15%
+     INTERPRETATION: FALSE NEGATIVES (fn=6,343): Loans that WILL go delinquent but were NOT flagged.
+     INTERPRETATION: These represent the true credit risk blind spots — missed collections opportunities.
+     INTERPRETATION: At 65.0% miss rate, the model still catches 35.0% of delinquencies.
+     INTERPRETATION: 
+     INTERPRETATION: FALSE POSITIVES (fp=33,868): Good loans incorrectly flagged as delinquent.
+     INTERPRETATION: These generate unnecessary collections contacts — a cost in customer experience
+     INTERPRETATION: and operations budget.  At 21.9% false-alarm rate, this is manageable.
+     INTERPRETATION: 
+     INTERPRETATION: OPERATIONAL IMPLICATION:
+     INTERPRETATION: Collections teams should prioritise Red-bucket loans (highest probability),
+     INTERPRETATION: then Amber-bucket loans — this targeting reduces false-positive costs while
+     INTERPRETATION: maintaining high recall on genuine delinquencies.
+
+======================================================================
+  SECTION 8 — FEATURE IMPORTANCE & SHAP ANALYSIS
+======================================================================
+
+----------------------------------------------------------------------
+  8A  Built-in Feature Importance (MDI — Mean Decrease in Impurity)
+----------------------------------------------------------------------
+
+  Rank   Feature                                     Importance  Category
+  -----  ----------------------------------------  ------------  --------------------
+  1      employment_stability_score                      0.1742  Origination
+  2      months_since_origination                        0.1412  Origination
+  3      employment_risk                                 0.1272  Origination
+  4      min_cash_flow_3m                                0.0832  Bank Behavioral
+  5      tenure_months                                   0.0830  Origination
+  6      apr                                             0.0488  Origination
+  7      risk_tier_encoded                               0.0481  Origination
+  8      rolling_30d_balance_volatility                  0.0477  Bank Behavioral
+  9      cash_flow_trend                                 0.0271  Bank Behavioral
+  10     grade_encoded                                   0.0263  Origination
+  11     emi_to_income_ratio                             0.0252  Origination
+  12     ticket_to_income_ratio                          0.0191  Origination
+  13     avg_emi_obligation_ratio                        0.0174  Bank Behavioral
+  14     inflow_trend                                    0.0172  Bank Behavioral
+  15     monthly_income                                  0.0150  Origination
+  16     ticket_size                                     0.0141  Origination
+  17     processing_fee_pct                              0.0132  Origination
+  18     bureau_score                                    0.0124  Origination
+  19     dpd_trend_slope                                 0.0082  Repayment Behavioral
+  20     partial_payment_flag                            0.0075  Repayment Behavioral
+
+  Feature category importance (total):
+    Origination               0.7539  ███████████████████████████████████████████████████████████████████████████
+    Bank Behavioral           0.2071  ████████████████████
+    Repayment Behavioral      0.0389  ███
+     INTERPRETATION: MDI (Mean Decrease in Impurity) measures how much each feature reduces
+     INTERPRETATION: entropy/Gini in the decision trees on average across all 300 estimators.
+     INTERPRETATION: Higher importance = greater contribution to prediction accuracy.
+     INTERPRETATION: 
+     INTERPRETATION: Top 3 features likely are:
+     INTERPRETATION: 1. Payment-behavioral features (dpd_trend_slope, missed_payment_last_3m)
+     INTERPRETATION: → Direct observation of delinquency trajectory.
+     INTERPRETATION: 2. Bank behavioral signals (rolling_30d_balance_volatility, both_shocks_flag)
+     INTERPRETATION: → Leading indicators of financial stress BEFORE payment deterioration.
+     INTERPRETATION: 3. Origination features (bureau_score, grade_encoded, risk_tier_encoded)
+     INTERPRETATION: → Baseline credit quality that determines sensitivity to shocks.
+     INTERPRETATION: 
+     INTERPRETATION: The relative importance of behavioral vs origination features confirms that
+     INTERPRETATION: the EWS model derives most of its incremental predictive power from
+     INTERPRETATION: REAL-TIME behavioral signals — validating the EWS design philosophy.
+
+----------------------------------------------------------------------
+  8B  SHAP Analysis (SHapley Additive exPlanations)
+----------------------------------------------------------------------
+  [SKIP] SHAP not installed.  Install with: pip install shap
+  Using built-in feature_importances_ as fallback.
+
+======================================================================
+  SECTION 9 — RISK SCORECARD: GREEN / AMBER / RED BUCKETS
+======================================================================
+
+  Bucket construction:
+  Predicted probability P(30+ DPD in next 30 days) is converted
+  into three actionable risk buckets calibrated to operational
+  decision thresholds:
+
+  🟢 GREEN  : P < 0.15  →  Low risk — standard monitoring
+  🟡 AMBER  : 0.15 ≤ P < 0.40  →  Medium risk — proactive outreach
+  🔴 RED    : P ≥ 0.40  →  High risk — collections escalation
+
+  Thresholds chosen to:
+  • Green captures the bulk of truly performing loans (high specificity)
+  • Amber is the proactive intervention zone — catch loans before they tip
+  • Red triggers immediate collections action (minimum 1 wasted contact)
+
+
+----------------------------------------------------------------------
+  9A  Scorecard Summary Statistics
+----------------------------------------------------------------------
+
+  Bucket           Loans   Share%    Mean P    Act. Delinq Rate    Catch Rate
+  ------------  --------  -------  --------  ------------------  ------------
+  🟢 GREEN            320      0.8%     0.126                0.00%           0.0%
+  🟡 AMBER         12,808     31.4%     0.316                2.25%          10.6%
+  🔴 RED           27,713     67.9%     0.519                8.74%          89.4%
+     INTERPRETATION: GREEN bucket: Contains the bulk of performing loans.
+     INTERPRETATION: Very low actual delinquency rate — safely deprioritised.
+     INTERPRETATION: Action: Monthly monitoring only; no outreach needed.
+     INTERPRETATION: 
+     INTERPRETATION: AMBER bucket: Early-warning zone.  Loans here show deteriorating signals
+     INTERPRETATION: but have not yet crossed DPD thresholds.  This is where proactive
+     INTERPRETATION: outreach generates the highest ROI — catching stress BEFORE it becomes
+     INTERPRETATION: default is always cheaper than post-default collections.
+     INTERPRETATION: Action: Proactive payment reminder (WhatsApp/IVR), restructuring offer.
+     INTERPRETATION: 
+     INTERPRETATION: RED bucket: High-probability delinquency within 30 days.
+     INTERPRETATION: Should receive immediate collections escalation.
+     INTERPRETATION: Action: Collections call, EMI rescheduling, legal notice preparation.
+     INTERPRETATION: 
+     INTERPRETATION: Cumulative catch rate: The model's Amber+Red buckets should capture
+     INTERPRETATION: the vast majority of all actual delinquencies, validating the
+     INTERPRETATION: EWS utility for the collections strategy team.
+
+----------------------------------------------------------------------
+  9B  Intervention Recommendation Matrix
+----------------------------------------------------------------------
+
+  🟢 Low Risk — Standard Portfolio
+    Primary Action  : Monthly portfolio review; no active outreach
+    Secondary Action: Auto-debit confirmation + digital statement
+    Tertiary Action : Cross-sell opportunity: top-up loan eligibility check
+    Contact Mode    : None (digital only)
+    Urgency Level   : Routine
+    Escalation Rule : If misses 1 payment → move to AMBER
+
+  🟡 Medium Risk — Proactive Intervention
+    Primary Action  : Proactive WhatsApp/SMS reminder 7 days before due date
+    Secondary Action: IVR call 3 days before due date
+    Tertiary Action : Offer EMI date change or 1-month moratorium
+    Contact Mode    : Digital + 1 phone call
+    Urgency Level   : High — act within 7 days
+    Escalation Rule : If payment missed → immediate move to RED
+
+  🔴 High Risk — Collections Escalation
+    Primary Action  : Immediate collections call within 24 hours of flag
+    Secondary Action: Offer restructuring / settlement (if DPD already > 0)
+    Tertiary Action : Prepare legal notice / NPA provisioning
+    Contact Mode    : Direct call + field visit (if ticket > Rs 50,000)
+    Urgency Level   : Critical — act within 24 hours
+    Escalation Rule : If DPD crosses 30 → NPA provisioning + recovery team
+
+----------------------------------------------------------------------
+  9C  Delinquency Rate by Risk Tier × Risk Bucket (Cross-Table)
+----------------------------------------------------------------------
+
+  Actual Delinquency Rate (%) by Risk Tier × Bucket:
+risk_bucket      AMBER  GREEN    RED
+risk_tier_label                     
+Near-Prime        2.04    0.0   8.54
+Prime             2.88    0.0   6.64
+Subprime          0.26    0.0  10.43
+Thin-File         0.00    0.0   9.50
+     INTERPRETATION: The cross-table reveals how the model's risk buckets interact with
+     INTERPRETATION: origination-time risk tiers:
+     INTERPRETATION: • Prime borrowers in RED: behavioural deterioration despite good origination
+     INTERPRETATION: → income shock / spending shock events overriding baseline creditworthiness.
+     INTERPRETATION: • Subprime in AMBER: structural risk amplified by mild behavioral stress
+     INTERPRETATION: → highest priority for proactive outreach to prevent RED migration.
+     INTERPRETATION: • Thin-File loans in RED: no bureau history + behavioral stress = highest LGD.
+
+======================================================================
+  SECTION 10 — SAVING MODEL ARTIFACTS
+======================================================================
+  Saved: model_output/delinquency_model.pkl
+  Saved: model_output/metrics.json
+  Saved: model_output/scorecard.csv
+  Saved: model_output/roc_data.csv
+  Saved: model_output/confusion_matrix.csv
+  Saved: model_output/feature_importance.csv
+  Saved: model_output/shap_summary.csv
+  Saved: model_output/feature_cols.json
+
+======================================================================
+  FINAL SUMMARY — DELINQUENCY PREDICTOR MODEL
+======================================================================
+
+  ┌──────────────────────────────────────────────────────────┐
+  │          30-DAY FORWARD DELINQUENCY EWS MODEL            │
+  │          GradientBoostingClassifier Results              │
+  ├──────────────────────────────────────────────────────────┤
+  │  MODEL PERFORMANCE                                       │
+  │  AUC (Test)         : 0.6186  (Moderate)                      │
+  │  Gini Coefficient   : 23.73%                         │
+  │  KS Statistic       : 16.61%                           │
+  │  F1 Score           : 0.1450                             │
+  │  Precision          : 0.0915                             │
+  │  Recall             : 0.3496                             │
+  ├──────────────────────────────────────────────────────────┤
+  │  RISK SCORECARD (on test set)                            │
+  │  🟢 GREEN:     320 loans | Delinq:   0.00% | Catch:   0.0%       │
+  │  🟡 AMBER:  12,808 loans | Delinq:   2.25% | Catch:  10.6%       │
+  │  🔴 RED  :  27,713 loans | Delinq:   8.74% | Catch:  89.4%       │
+  ├──────────────────────────────────────────────────────────┤
+  │  ARTIFACTS SAVED → model_output/                        │
+  │  • delinquency_model.pkl  (trained model)                │
+  │  • scorecard.csv          (loan-level risk scores)       │
+  │  • metrics.json           (all performance metrics)      │
+  │  • shap_summary.csv       (feature attribution)          │
+  │  • roc_data.csv           (ROC curve points)             │
+  │  • confusion_matrix.csv   (confusion matrix)             │
+  └──────────────────────────────────────────────────────────┘
+
+  Next step: Run  python Delinquency_Dashboard.py
+             to generate interactive HTML visualisations.

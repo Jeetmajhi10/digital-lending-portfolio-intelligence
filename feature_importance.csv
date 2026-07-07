@@ -1,0 +1,43 @@
+feature,importance,category
+months_since_origination,408,Origination
+min_cash_flow_3m,321,Bank Behavioral
+inflow_trend,245,Bank Behavioral
+cash_flow_trend,235,Bank Behavioral
+ticket_size,219,Origination
+volatility_acceleration,216,Bank Behavioral
+processing_fee_pct,200,Origination
+monthly_income,198,Origination
+apr,194,Origination
+ticket_to_income_ratio,184,Origination
+rolling_30d_balance_volatility,179,Bank Behavioral
+bureau_score,172,Origination
+employment_stability_score,166,Origination
+tenure_months,160,Origination
+avg_emi_obligation_ratio,151,Bank Behavioral
+emi_to_income_ratio,93,Origination
+max_dpd_last_3m,60,Repayment Behavioral
+dpd_trend_slope,56,Repayment Behavioral
+sma_encoded,50,Repayment Behavioral
+approval_turnaround_days,40,Origination
+active_loan_accounts,40,Bank Behavioral
+employment_risk,38,Origination
+partial_payment_flag,35,Repayment Behavioral
+product_risk,33,Origination
+is_festival_month,31,Repayment Behavioral
+channel_risk_score,24,Origination
+sma_trend,15,Repayment Behavioral
+payment_ratio_last_month,11,Repayment Behavioral
+existing_customer,10,Origination
+income_shock_count,9,Bank Behavioral
+dpd_bucket_encoded,9,Repayment Behavioral
+spending_shock_flag_3m,8,Bank Behavioral
+income_shock_flag_3m,8,Bank Behavioral
+both_shocks_flag,7,Bank Behavioral
+grade_encoded,7,Origination
+late_payment_last_3m,5,Repayment Behavioral
+risk_tier_encoded,3,Origination
+max_sma_last_3m,2,Repayment Behavioral
+new_to_credit_flag,2,Origination
+consecutive_missed,0,Repayment Behavioral
+missed_payment_last_3m,0,Repayment Behavioral
+months_no_on_time,0,Repayment Behavioral

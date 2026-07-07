@@ -1,0 +1,62 @@
+{
+  "model_version": "LightGBM-EWS v2.0",
+  "auc_train": 0.6557,
+  "auc_test": 0.6246,
+  "gini_test": 24.92,
+  "ks_statistic_pct": 17.16,
+  "ks_roc_pct": 17.16,
+  "precision": 0.0777,
+  "recall": 0.6749,
+  "f1_score": 0.1393,
+  "avg_precision": 0.0996,
+  "optimal_threshold": 0.469,
+  "tn": 76808,
+  "fp": 78149,
+  "fn": 3170,
+  "tp": 6582,
+  "n_features": 42,
+  "n_train": 658834,
+  "n_test": 164709,
+  "positive_rate_train": 0.0592,
+  "positive_rate_test": 0.0592,
+  "n_estimators": 62,
+  "scorecard": [
+    {
+      "bucket": "GREEN",
+      "n": 4464,
+      "share_pct": 10.930192698513748,
+      "mean_prob": 0.14488443866635334,
+      "actual_delinquency_rate": 0.17921146953405018,
+      "catch_rate": 0.2950940612320177
+    },
+    {
+      "bucket": "AMBER",
+      "n": 16280,
+      "share_pct": 39.861903479346736,
+      "mean_prob": 0.345850233005179,
+      "actual_delinquency_rate": 3.9250614250614246,
+      "catch_rate": 23.570638140907416
+    },
+    {
+      "bucket": "RED",
+      "n": 20097,
+      "share_pct": 49.207903822139514,
+      "mean_prob": 0.5342660015282571,
+      "actual_delinquency_rate": 10.270189580534408,
+      "catch_rate": 76.13426779786056
+    }
+  ],
+  "bucket_thresholds": {
+    "GREEN_max": 0.2,
+    "AMBER_max": 0.45,
+    "RED_min": 0.45
+  },
+  "shap_available": true,
+  "algorithm": "LightGBM",
+  "pos_weight": 15.89,
+  "shap_category_importance": {
+    "Origination": 0.6658,
+    "Bank Behavioral": 0.0683,
+    "Repayment Behavioral": 0.0455
+  }
+}
