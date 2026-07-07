@@ -236,19 +236,20 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 
 @st.cache_data(show_spinner="Loading datasets…")
 def load_data():
-    cust  = pd.read_csv(os.path.join(BASE, "dataset/01_customers.csv"))
-    loans = pd.read_csv(os.path.join(BASE, "dataset/02_loans.csv"))
-    
-    # Use .zip for the large files to bypass GitHub's upload limits
-    rep_path = os.path.join(BASE, "dataset/03_repayments.zip")
-    if not os.path.exists(rep_path): rep_path = rep_path.replace(".zip", ".csv")
-    rep = pd.read_csv(rep_path)
-    
-    beh_path = os.path.join(BASE, "dataset/04_behavioral_signals.zip")
-    if not os.path.exists(beh_path): beh_path = beh_path.replace(".zip", ".csv")
-    beh = pd.read_csv(beh_path)
-    
-    out   = pd.read_csv(os.path.join(BASE, "dataset/05_outcomes.csv"))
+    def get_path(filename):
+        p1 = os.path.join(BASE, "dataset", filename)
+        if os.path.exists(p1): return p1
+        p2 = os.path.join(BASE, filename)
+        if os.path.exists(p2): return p2
+        if filename.endswith(".zip"):
+            return get_path(filename.replace(".zip", ".csv"))
+        return p1 # Default fallback
+
+    cust  = pd.read_csv(get_path("01_customers.csv"))
+    loans = pd.read_csv(get_path("02_loans.csv"))
+    rep   = pd.read_csv(get_path("03_repayments.zip"))
+    beh   = pd.read_csv(get_path("04_behavioral_signals.zip"))
+    out   = pd.read_csv(get_path("05_outcomes.csv"))
 
     loans["origination_date"] = pd.to_datetime(loans["origination_date"])
     loans["cohort_quarter"]   = loans["origination_date"].dt.to_period("Q").astype(str)
