@@ -279,12 +279,19 @@ def load_data():
 
 @st.cache_data(show_spinner="Loading model artefacts…")
 def load_model_outputs():
-    with open(os.path.join(BASE, "model_output/metrics.json")) as f:
+    def get_model_path(filename):
+        p1 = os.path.join(BASE, "model_output", filename)
+        if os.path.exists(p1): return p1
+        p2 = os.path.join(BASE, filename)
+        if os.path.exists(p2): return p2
+        return p1 # Default fallback
+
+    with open(get_model_path("metrics.json")) as f:
         metrics = json.load(f)
-    feat_imp = pd.read_csv(os.path.join(BASE, "model_output/feature_importance.csv"))
-    scorecard = pd.read_csv(os.path.join(BASE, "model_output/scorecard.csv"), nrows=15000)
-    roc       = pd.read_csv(os.path.join(BASE, "model_output/roc_data.csv"))
-    cm        = pd.read_csv(os.path.join(BASE, "model_output/confusion_matrix.csv"), index_col=0)
+    feat_imp = pd.read_csv(get_model_path("feature_importance.csv"))
+    scorecard = pd.read_csv(get_model_path("scorecard.csv"), nrows=15000)
+    roc       = pd.read_csv(get_model_path("roc_data.csv"))
+    cm        = pd.read_csv(get_model_path("confusion_matrix.csv"), index_col=0)
     return metrics, feat_imp, scorecard, roc, cm
 
 
