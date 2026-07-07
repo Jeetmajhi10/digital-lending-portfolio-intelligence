@@ -238,8 +238,16 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 def load_data():
     cust  = pd.read_csv(os.path.join(BASE, "dataset/01_customers.csv"))
     loans = pd.read_csv(os.path.join(BASE, "dataset/02_loans.csv"))
-    rep   = pd.read_csv(os.path.join(BASE, "dataset/03_repayments.csv"))
-    beh   = pd.read_csv(os.path.join(BASE, "dataset/04_behavioral_signals.csv"))
+    
+    # Use .zip for the large files to bypass GitHub's upload limits
+    rep_path = os.path.join(BASE, "dataset/03_repayments.zip")
+    if not os.path.exists(rep_path): rep_path = rep_path.replace(".zip", ".csv")
+    rep = pd.read_csv(rep_path)
+    
+    beh_path = os.path.join(BASE, "dataset/04_behavioral_signals.zip")
+    if not os.path.exists(beh_path): beh_path = beh_path.replace(".zip", ".csv")
+    beh = pd.read_csv(beh_path)
+    
     out   = pd.read_csv(os.path.join(BASE, "dataset/05_outcomes.csv"))
 
     loans["origination_date"] = pd.to_datetime(loans["origination_date"])
